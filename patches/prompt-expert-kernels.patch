@@ -1758,7 +1758,7 @@ diff --git a/tests/cuda/test_exl3_prompt_experts.py b/tests/cuda/test_exl3_promp
 new file mode 100644
 --- /dev/null
 +++ b/tests/cuda/test_exl3_prompt_experts.py
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,155 @@
 +"""EXL3 routed experts in prompt windows (experts_prompt.cuh) give every pair the grouping kernel's bits.
 +
 +Every codebook, mixed and 4-bit-only widths, skewed routing (experts spanning several items), skipped picks, with and
@@ -1914,7 +1914,6 @@ new file mode 100644
 +    bad = (out.view(torch.int16) != ref.view(torch.int16))
 +    rows = bad.any(dim=1).nonzero().flatten().tolist()
 +    assert bad32 == 0 and not rows, (bad32, int(bad.sum()), rows[:20], len(rows))
-+
 diff --git a/pyproject.toml b/pyproject.toml
 --- a/pyproject.toml
 +++ b/pyproject.toml

@@ -6,7 +6,7 @@ One NVIDIA GB10 / DGX Spark. EXL3 4.05bpw_h6_ng6 language checkpoint, fixed revi
 
 Measured integration, not invention: original TensorFold PR212 prompt expert kernels by **grearjake-star**, head `f28b49f6e91b1789e25345875d61c5e663c19b1a`; PR252 selective n-gram read-ahead by **grearjake-star**, head `7ebfd533d72b827cd23661e307f8d4eaa0d1fb59`. PR212 unrelated F16/dense GEMM changes were excluded. Full source artifact hashes and source-receipt hashes are in [prefill-screen.json](prefill-screen.json), with source filesystem locations withheld.
 
-Published B is opt-in via `--prefill-kernels`, default off. The public patch contains the 18 measured runtime/test files plus one **packaging-only** `pyproject.toml` fix for legacy212 source data. That fix is not a new GPU sweep. Measured B adds **480285400 bytes** of capacity-plan workspace; PR252/C is not shipped. Public patch SHA256: `73185dac88d306afec98a7eca58ce393dbc1ee2b647f06018428b09cbf2c74ad`.
+Published B is opt-in via `--prefill-kernels`, default off. The public patch contains the 18 measured runtime/test files plus one **packaging-only** `pyproject.toml` fix for legacy212 source data. That fix is not a new GPU sweep. Measured B adds **480285400 bytes** of capacity-plan workspace; PR252/C is not shipped. Public patch SHA256: `bf884015181a1241b4038b25fdafff0f7d4887ce5725f112d99ba2f460f309fa`.
 
 The existing [32k/64k before/after PNG](prefill-screen.png) is recorded by actual SHA256, byte size and dimensions in the JSON. Its rounded values represent only cold-advice-unverified A/B rows, not warm rows or C.
 

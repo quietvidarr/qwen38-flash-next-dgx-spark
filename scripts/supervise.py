@@ -111,7 +111,7 @@ def main(argv=None):
     image = json.loads(subprocess.check_output(["docker", "image", "inspect", IMAGE], text=True))[0]
     if image["Config"].get("Labels", {}).get("qwen.runtime.revision") != "609ca419abecebdc5a059498a613680bd3aa847f":
         raise SystemExit("Runtime image pin mismatch")
-    if a.prefill_kernels and image["Config"].get("Labels", {}).get("qwen.prompt-expert.patch.sha256") != "73185dac88d306afec98a7eca58ce393dbc1ee2b647f06018428b09cbf2c74ad":
+    if a.prefill_kernels and image["Config"].get("Labels", {}).get("qwen.prompt-expert.patch.sha256") != "bf884015181a1241b4038b25fdafff0f7d4887ce5725f112d99ba2f460f309fa":
         raise SystemExit("Prompt-kernel image patch mismatch; rebuild this recipe first")
     cache.mkdir(exist_ok=True)
     for folder in ["home", "torch-extensions", "triton"]:

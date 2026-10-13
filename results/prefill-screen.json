@@ -17639,8 +17639,8 @@
   "publication_artifacts": {
     "winning_B_patch": {
       "path": "patches/prompt-expert-kernels.patch",
-      "sha256": "73185dac88d306afec98a7eca58ce393dbc1ee2b647f06018428b09cbf2c74ad",
-      "bytes": 94682,
+      "sha256": "bf884015181a1241b4038b25fdafff0f7d4887ce5725f112d99ba2f460f309fa",
+      "bytes": 94680,
       "files": 19,
       "measured_runtime_and_test_files": 18,
       "packaging_only_files": 1,
