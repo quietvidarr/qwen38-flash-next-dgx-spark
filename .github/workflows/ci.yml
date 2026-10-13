@@ -29,5 +29,9 @@ jobs:
           git -C "$RUNNER_TEMP/tensorfold" apply --check --whitespace=error-all "$GITHUB_WORKSPACE/patches/vision-prefix-cache.patch"
           git -C "$RUNNER_TEMP/tensorfold" apply "$GITHUB_WORKSPACE/patches/vision-prefix-cache.patch"
           git -C "$RUNNER_TEMP/tensorfold" apply --reverse --check "$GITHUB_WORKSPACE/patches/vision-prefix-cache.patch"
+          git -C "$RUNNER_TEMP/tensorfold" apply --check --whitespace=error-all "$GITHUB_WORKSPACE/patches/prompt-expert-kernels.patch"
+          git -C "$RUNNER_TEMP/tensorfold" apply "$GITHUB_WORKSPACE/patches/prompt-expert-kernels.patch"
+          git -C "$RUNNER_TEMP/tensorfold" apply --reverse --check "$GITHUB_WORKSPACE/patches/prompt-expert-kernels.patch"
+          python scripts/verify_prefill_patch.py --runtime "$RUNNER_TEMP/tensorfold"
       - name: Diff hygiene
         run: git diff --check

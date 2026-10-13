@@ -16,6 +16,7 @@ GIB = 1024**3
 IMAGE = "qwen38-flash-next-tensorfold:609ca419"
 LABEL = "tensorfold-exl3-405"
 MINIMUM_PRELOAD_AVAILABLE = 96220600952
+PROMPT_WORKSPACE_EXTRA = 480285400  # measured native capacity-plan difference
 
 
 def sample(disk_root):
@@ -46,7 +47,7 @@ def validate_artifacts(model, tower):
         raise ValueError("Expected the manifest's BF16 tower filename")
 
 
-def docker_command(model, tower, cache, name, port, cidfile):
+def docker_command(model, tower, cache, name, port, cidfile, *, prefill_kernels=False):
     return ["docker", "run", "--rm", "--name", name, "--cidfile", str(cidfile),
             "--label", "qwen.recipe=" + LABEL, "--gpus", "all", "--memory", "112g",
             "--memory-swap", "112g", "--shm-size", "2g", "--read-only",
@@ -55,6 +56,7 @@ def docker_command(model, tower, cache, name, port, cidfile):
             "-v", f"{tower}:/vision/vision_tower_bf16.safetensors:ro", "-v", f"{cache}:/cache:rw",
             "-e", "HOME=/cache/home", "-e", "TORCH_EXTENSIONS_DIR=/cache/torch-extensions",
             "-e", "TRITON_CACHE_DIR=/cache/triton", "-e", "MAX_JOBS=1",
+            "-e", "QWEN_PREFILL_KERNEL=" + ("1" if prefill_kernels else "0"),
             "-e", "TENSORFOLD_MEMORY_RESERVE_GIB=7", "-e", "TENSORFOLD_NO_UPDATE_CHECK=1",
             IMAGE, "--model", "/model", "--vision-weights", "/vision/vision_tower_bf16.safetensors",
             "--host", "0.0.0.0", "--port", "8001"]
@@ -85,6 +87,7 @@ def main(argv=None):
     p.add_argument("vision_weights", type=Path)
     p.add_argument("--port", type=int, default=8001)
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--prefill-kernels", action="store_true", help="Opt in to the screened PR212 prompt-only expert kernels")
     a = p.parse_args(argv)
     if not 1 <= a.port <= 65535:
         p.error("port outside 1..65535")
@@ -92,11 +95,12 @@ def main(argv=None):
     name = "qwen38-flash-next-tensorfold"
     cache = (ROOT / "runtime-cache").resolve()
     if a.dry_run:
-        print(json.dumps(docker_command(model, tower, cache, name, a.port, cache / "container.cid")))
+        print(json.dumps(docker_command(model, tower, cache, name, a.port, cache / "container.cid", prefill_kernels=a.prefill_kernels)))
         return 0
     validate_artifacts(model, tower)
     baseline = sample(model)
-    if baseline["mem_available"] < MINIMUM_PRELOAD_AVAILABLE:
+    minimum = MINIMUM_PRELOAD_AVAILABLE + (PROMPT_WORKSPACE_EXTRA if a.prefill_kernels else 0)
+    if baseline["mem_available"] < minimum:
         raise SystemExit("Insufficient preload headroom. Another model may still be resident; no service was stopped.")
     reason = breach(baseline, baseline)
     if reason:
@@ -107,6 +111,8 @@ def main(argv=None):
     image = json.loads(subprocess.check_output(["docker", "image", "inspect", IMAGE], text=True))[0]
     if image["Config"].get("Labels", {}).get("qwen.runtime.revision") != "609ca419abecebdc5a059498a613680bd3aa847f":
         raise SystemExit("Runtime image pin mismatch")
+    if a.prefill_kernels and image["Config"].get("Labels", {}).get("qwen.prompt-expert.patch.sha256") != "73185dac88d306afec98a7eca58ce393dbc1ee2b647f06018428b09cbf2c74ad":
+        raise SystemExit("Prompt-kernel image patch mismatch; rebuild this recipe first")
     cache.mkdir(exist_ok=True)
     for folder in ["home", "torch-extensions", "triton"]:
         (cache / folder).mkdir(exist_ok=True)
@@ -121,7 +127,7 @@ def main(argv=None):
     with tempfile.TemporaryDirectory(prefix="launch-", dir=cache) as launch:
         cidfile = Path(launch) / "container.cid"
         try:
-            process = subprocess.Popen(docker_command(model, tower, cache, name, a.port, cidfile))
+            process = subprocess.Popen(docker_command(model, tower, cache, name, a.port, cidfile, prefill_kernels=a.prefill_kernels))
             deadline = time.monotonic()+1200
             ready = False
             while process.poll() is None and not halted:

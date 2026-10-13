@@ -2,14 +2,17 @@
 
 A **TensorFold EXL3 4.05** serving recipe for one NVIDIA GB10 with 128 GB unified memory. The default is **thinking enabled, 262,144-token context, native vision, image-aware prefix caching and MTP6**.
 
-![Qwen3.8 Flash-Next on one GB10: TensorFold 75.68 versus native ExLlamaV3 67.54 tok/s, +12.0% short-prompt decode, with native ahead on approximately 32K prefill](results/tensorfold-exl3-405-card.png)
+The update adds **opt-in prompt-only expert kernels**. A matched one-pass screen improved prefix-uncached 32K/64K prefill rates by **49.9%–135.1%**, with **−0.47% to +0.13%** decode changes across five estimable cells. This is a screened candidate, not an automatic live promotion.
+
+![Qwen3.8 Flash-Next on DGX Spark: before/after TTFT and native prefill rates for 32K and 64K code and prose, one-pass prefix-uncached screen](results/prefill-screen.png)
 
 ## The recipe
 
 ```text
 Language weights: turboderp/Qwen3.8-Flash-Next-exl3
 Quantization:     4.05bpw_h6_ng6
-Runtime:          TensorFold 0.6.5, pinned source + vision-prefix patch
+Runtime:          TensorFold 0.6.5, pinned source + vision-prefix/prompt patches
+Prompt kernels:   opt-in (--prefill-kernels); legacy path remains the default
 Hardware:         one GB10, 128 GB unified memory
 Context:          262,144 tokens
 MTP:              depth 6, confidence 0.70
@@ -75,7 +78,7 @@ Both manifests pin immutable Hub revisions and file sizes. Large payloads use SH
 bash scripts/build_tensorfold.sh
 ```
 
-The build uses an immutable ARM64 CUDA base, PyTorch **2.13.0+cu130**, Triton **3.7.1**, and the pinned TensorFold source. It verifies and applies [`patches/vision-prefix-cache.patch`](patches/vision-prefix-cache.patch) before installing the runtime; the patch is part of this recipe, not the unmodified upstream release. It installs no other inference engine. The command finishes with CPU-side patched-runtime and image-processor imports. CUDA extensions compile on the first model load, with `MAX_JOBS=1`; their cache is retained under `runtime-cache/`.
+The build uses an immutable ARM64 CUDA base, PyTorch **2.13.0+cu130**, Triton **3.7.1**, and the pinned TensorFold source. It verifies and applies [`patches/vision-prefix-cache.patch`](patches/vision-prefix-cache.patch) and [`patches/prompt-expert-kernels.patch`](patches/prompt-expert-kernels.patch) before installing the runtime. The Docker build verifies installed source hashes and both legacy/prompt source closures. These patches are part of this recipe, not the unmodified upstream release. It installs no other inference engine. The command finishes with CPU-side patched-runtime and image-processor imports. CUDA extensions compile on the first model load, with `MAX_JOBS=1`; their cache is retained under `runtime-cache/`.
 
 ## 4. Start the server
 
@@ -96,6 +99,22 @@ journalctl --user -u qwen38-flash-next-tensorfold.service -f
 The installer verifies both artifact manifests. It refuses to overwrite an existing unit and does not start a deployment implicitly. The Docker container is capped at **112 GiB**, with service swap disabled. The independent host supervisor checks the reserve and swap-growth guards throughout startup and serving. A healthy idle server has no idle timeout.
 
 The endpoint is bound to **127.0.0.1:8001**. This recipe does not install an external proxy or publish an unauthenticated API to the network.
+
+## Optional: screened prompt-only expert kernels
+
+After rebuilding, opt in at an idle maintenance boundary:
+
+```bash
+bash scripts/run_server.sh "$MODEL_ROOT" "$VISION_WEIGHTS" --prefill-kernels
+```
+
+For a new user-service installation, add the same flag to `scripts/install_service.sh`. The installer still refuses to overwrite an existing unit and does not start it implicitly. Omitting the flag retains the incumbent kernel path. The launcher passes an explicit `QWEN_PREFILL_KERNEL=0/1`, validates the image patch checksum for opt-in launches, and does not inherit an accidental host switch.
+
+This integrates **grearjake-star's original [TensorFold PR212](https://github.com/ashhart/TensorFold/pull/212)** at `f28b49f6e91b1789e25345875d61c5e663c19b1a`. The PR was closed and unmerged at inspection. Larger explicit prompt windows (>64 rows) use the prompt expert kernels; decode and MTP verification remain on the legacy path. The prompt scratch window is 2048 rows instead of 1024, with the extra plan allocated before graph capture. The native capacity-plan difference is approximately **458 MiB**, included in launcher admission. Context, weights, tokenizer/template, routing, BF16 KV, MTP6/confidence, two streams, vision and prefix-cache features are unchanged.
+
+Selective n-gram read-ahead from PR252 was also screened. It improved fault-heavy prompt cells but lost 6.06%–7.76% on four short decode prompts. **It is not shipped or enabled in this update.** Source integration is credited to the original author; the matched local screen is our measurement, not an invention of the upstream kernels.
+
+A pull does not change an already-running container. Rebuild and choose an idle restart explicitly. The experiment ended with the original deployment restored; publication does not promote the candidate automatically.
 
 ## 5. Verify thinking, text, native vision and prefix reuse
 
@@ -132,9 +151,32 @@ The output default is 32,768 tokens when a request omits its own cap. `max_token
 
 After pulling this update, rebuild with `bash scripts/build_tensorfold.sh` and restart an existing deployment at an idle boundary so the container uses both the patched runtime and the updated 64-image launcher. The image tag stays the same; a pull alone does not update an already-running container.
 
-## Measured comparison
+## Fresh matched prefill screen
 
-**TensorFold wins short-prompt decode and TTFT. Native ExLlamaV3 wins the approximately 32K prefill proxies.** All 70 selected A/B quality items have identical pass/fail outcomes.
+**Before = fresh incumbent A; after = A plus prompt-only kernels B.** Both use the same deployed EXL3 4.05 language weights, **262,144-token context, BF16 KV, MTP6/confidence 0.70, two streams and native vision enabled**. Unlike the historical runtime comparison below, this is a matched source treatment. One measured sweep per condition; no repeats or parameter fishing.
+
+### Cold-advised, prefix-uncached
+
+| Prompt | TTFT before | TTFT after | Prefill before | Prefill after | Rate gain |
+|---|---:|---:|---:|---:|---:|
+| 32K code | 57.82 s | 31.09 s | 557.34 tok/s | 1036.33 tok/s | +85.9% |
+| 32K prose | 78.65 s | 52.41 s | 411.37 tok/s | 616.53 tok/s | +49.9% |
+| 64K code | 98.50 s | 41.93 s | 668.41 tok/s | 1571.53 tok/s | +135.1% |
+| 64K prose | 97.27 s | 41.73 s | 676.97 tok/s | 1579.07 tok/s | +133.3% |
+
+Rates come directly from the native engine and include first-token sampling. They are **not isolated GPU kernel throughput** or TTFT-derived rates. File-scoped clean-page advice was attempted, but eviction/residency was not verified. The 64K advised cells had few or zero major faults and must not be called cold results. Warm prefix-uncached counterparts also improved; all 8K/32K/64K code/prose cells and the read-ahead arm are in the receipt/report, including losses.
+
+Post-first-emission decode changes versus A: code **+0.13%**, math **+0.02%**, prose **−0.45%**, structured **−0.47%**, 64K prose context **−0.17%**. These five cells emitted 400 tokens and hit the shared cap. The 32K code context emitted one EOS token in all arms, so its decode rate is unavailable. Within 3% is provisionally neutral in this screen, not statistical equivalence.
+
+All **26/26 A→B** output token-ID sequences match, and all five same-runtime drafted-versus-serial pairs match. **27/27** feature smokes passed across A/B/C; bounded token identity and short feature checks do not establish universal losslessness or complete-answer quality. The original deployment was restored and authenticated generation verified. Minimum observed reserve was **26.89 GiB** in preparation and **28.81 GiB** in the continuous maintenance block; maximum positive host-swap growth and experiment-cgroup swap were both **zero**.
+
+Exact cells, output/token-sequence hashes, immutable source provenance, counters, preparation tests and safety: [`results/prefill-screen.json`](results/prefill-screen.json). Human-readable report: [`results/prefill-screen.md`](results/prefill-screen.md). The table image is generated from these measured values, not upstream headline claims.
+
+## Historical runtime comparison
+
+![Qwen3.8 Flash-Next on one GB10: TensorFold 75.68 versus native ExLlamaV3 67.54 tok/s, +12.0% short-prompt decode, with native ahead on approximately 32K prefill](results/tensorfold-exl3-405-card.png)
+
+**In this historical comparison, TensorFold wins short-prompt decode and TTFT. Native ExLlamaV3 wins the approximately 32K prefill proxies.** All 70 selected A/B quality items have identical pass/fail outcomes.
 
 | Metric | TensorFold EXL3 4.05 | Native ExLlamaV3 EXL3 4.05 |
 |---|---:|---:|
@@ -153,7 +195,7 @@ Speed is the equal-weight mean of four per-prompt medians, with three repetition
 
 The quality scores cover 50 GSM8K and 20 HumanEval selected items, not full benchmark scores. TensorFold's same-load drafted-versus-serial check matched **400/400 token IDs on each of four prompts**, not A/B output equivalence. The supplied card's additional reference column is preserved with its provenance in the result receipt; it is not another install profile.
 
-**The default 262K/native-vision deployment is separate from the 40K/text-only benchmark.** Image and text functional checks passed, but the displayed throughput is **not** a 262K or vision-enabled benchmark. No full-window stress result is claimed.
+**The default 262K/native-vision deployment is separate from this historical 40K/text-only benchmark.** Image and text functional checks passed, but the displayed throughput is **not** a 262K or vision-enabled benchmark. No full-window stress result is claimed.
 
 Exact values, runtime pins, retained evidence hashes and card checksum: [`results/tensorfold-exl3-405.json`](results/tensorfold-exl3-405.json).
 

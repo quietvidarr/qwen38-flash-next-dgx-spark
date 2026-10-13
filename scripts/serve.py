@@ -11,6 +11,13 @@ MODEL_ID = "qwen38-flash-next-tf405"
 RUNTIME_SHA = "609ca419abecebdc5a059498a613680bd3aa847f"
 
 
+def prefill_kernel_enabled():
+    value = os.environ.get("QWEN_PREFILL_KERNEL", "0")
+    if value not in ("0", "1"):
+        raise ValueError("QWEN_PREFILL_KERNEL must be exactly 0 or 1")
+    return value == "1"
+
+
 def engine_options():
     return dict(depth=6, confidence=0.70, max_len=262144, context_explicit=True,
                 tp=1, streams=2, prefetch=False, graphs=True, kv_dtype="bf16", vision=True)
@@ -33,7 +40,8 @@ def main(argv=None):
     a = parse_args(argv)
     config = dict(model_id=MODEL_ID, runtime_revision=RUNTIME_SHA, engine=engine_options(),
                   host=a.host, port=a.port, output_default_tokens=32768, thinking_default=True,
-                  vision_max_images=64, vision_prefix_cache="same-complete-media-history-v1")
+                  vision_max_images=64, vision_prefix_cache="same-complete-media-history-v1",
+                  prompt_expert_kernels=prefill_kernel_enabled())
     if a.print_config:
         print(json.dumps(config, indent=2))
         return 0

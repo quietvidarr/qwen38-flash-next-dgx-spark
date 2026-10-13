@@ -16,8 +16,11 @@ def systemd_quote(value):
     return '"' + value.replace("%", "%%").replace("$", "$$").replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def render(model, tower):
-    command = " ".join(systemd_quote(x) for x in ["/usr/bin/python3", ROOT / "scripts/supervise.py", model, tower])
+def render(model, tower, *, prefill_kernels=False):
+    argv = ["/usr/bin/python3", ROOT / "scripts/supervise.py", model, tower]
+    if prefill_kernels:
+        argv.append("--prefill-kernels")
+    command = " ".join(systemd_quote(x) for x in argv)
     return f"""[Unit]
 Description=Qwen3.8 Flash-Next TensorFold EXL3 4.05
 After=docker.service
@@ -40,11 +43,12 @@ def main(argv=None):
     p.add_argument("model_root", type=Path)
     p.add_argument("vision_weights", type=Path)
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--prefill-kernels", action="store_true")
     a = p.parse_args(argv)
     model, tower = a.model_root.expanduser().resolve(), a.vision_weights.expanduser().resolve()
     if tower.name != "vision_tower_bf16.safetensors":
         p.error("Expected manifest BF16 tower filename")
-    unit = render(model, tower)
+    unit = render(model, tower, prefill_kernels=a.prefill_kernels)
     if a.dry_run:
         print(unit, end="")
         return 0

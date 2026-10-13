@@ -25,7 +25,7 @@ class TensorFoldResult(unittest.TestCase):
         self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
         self.assertEqual(struct.unpack(">II", data[16:24]), (card["width"], card["height"]))
         images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", self.readme)
-        self.assertEqual(images, [card["path"]])
+        self.assertEqual(images, ["results/prefill-screen.png", card["path"]])
         self.assertFalse((ROOT / "results/gsq-iq3xxs-card.png").exists())
 
     def test_complete_fixed_denominator(self):
