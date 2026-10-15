@@ -1,3 +1,9 @@
+> **Fork** of [sxuff/qwen38-flash-next-dgx-spark](https://github.com/sxuff/qwen38-flash-next-dgx-spark) (MIT, © 2026 souf).  
+> Ours: `local/` ([LOCAL_CHANGES.md](LOCAL_CHANGES.md)). TensorFold changes: [quietvidarr/TensorFold-spark](https://github.com/quietvidarr/TensorFold-spark).
+
+**Install and run** through [spark-serving](https://github.com/quietvidarr/spark-serving#setup)'s model router, not the upstream steps below.
+The router calls `local/` internally.
+
 # Qwen3.8 Flash-Next on one DGX Spark or ASUS Ascent GX10
 
 A **TensorFold EXL3 4.05** serving recipe for one NVIDIA GB10 with 128 GB unified memory. The default is **thinking enabled, 262,144-token context, native vision, image-aware prefix caching and MTP6**.
