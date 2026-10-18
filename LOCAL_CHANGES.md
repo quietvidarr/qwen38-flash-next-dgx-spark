@@ -1,7 +1,7 @@
 # Local changes
 
 Upstream: [sxuff/qwen38-flash-next-dgx-spark](https://github.com/sxuff/qwen38-flash-next-dgx-spark) (souf). TensorFold: [ashhart/TensorFold](https://github.com/ashhart/TensorFold).
-TensorFold changes live in [quietvidarr/TensorFold-spark@f92a45ee](https://github.com/quietvidarr/TensorFold-spark/commit/f92a45ee049ab627d0d3260443a63010d3221ea7) (`local/pins.env`).
+TensorFold changes live in [quietvidarr/TensorFold-spark@4877e2ad](https://github.com/quietvidarr/TensorFold-spark/commit/4877e2adf4b49bf6f5118d992618e68df8866a3c) (`local/pins.env`).
 Branch `local-patches` only adds files (`local/`, this file). Settings in `.env` (git-ignored).
 
 ## Update
