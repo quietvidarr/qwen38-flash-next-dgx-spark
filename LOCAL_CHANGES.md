@@ -39,6 +39,13 @@ Incompatible: fix `local/`, or rebase the fork and pin the new commit, then re-c
 | `download.sh`, `hf-download.sh`, `verify_weights.py` | Resumable parallel download (curl), verified against upstream manifests |
 | `image.sh` | "Update available" = image for current recipe not built |
 | `check-update.sh`, `update.sh` | Safe update, above |
+| `templates/chat_template.jinja` | Stock template + sticky reasoning notes; mounted, `TF_CHAT_TEMPLATE` (`CHAT_TEMPLATE`, empty = stock). Needs a fork with `TF_CHAT_TEMPLATE` |
+| `templates/test_sticky.py` | CPU check vs stock: `PYTHONPATH=<fork>/src python3 local/templates/test_sticky.py <snapshot dir>` |
+
+### Sticky reasoning
+
+Stock puts the effort instruction into the first system block: an effort switch re-prefills the whole conversation.
+With `chat_template_kwargs` `reasoning_prefix` (level of the beginning) and `reasoning_changes` (`[[index, level]]`, a note before `messages[index]`), the override keeps the beginning and adds `<|im_start|>system\n<instruction><|im_end|>` notes: xhigh/low stock text, medium `Reasoning effort is set to medium.`, off `Thinking is off.`. Prefix off/medium: no instruction. Without the kwargs: stock, byte for byte.
 
 ## TensorFold changes
 

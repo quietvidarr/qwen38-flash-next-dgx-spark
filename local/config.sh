@@ -37,6 +37,10 @@ source "$RECIPE_DIR/local/pins.env"                 # TensorFold fork + pinned c
 : "${TF_PROFILE_TRACE:=0}"                      # 1: the profiler also writes a kernel timeline (.json)
 : "${MEMORY_LIMIT:=112g}"                      # upstream's container cap (no swap)
 
+# Chat template override (TensorFold TF_CHAT_TEMPLATE): stock template + sticky reasoning notes, so an effort switch
+# mid-conversation keeps the earlier prompt (router: reasoning_prefix / reasoning_changes). Empty = the checkpoint's.
+: "${CHAT_TEMPLATE=$RECIPE_DIR/local/templates/chat_template.jinja}"
+
 # Prompt cache on disk (patch 0006). Empty PROMPT_CACHE_DIR turns it off.
 : "${PROMPT_CACHE_DIR:=${XDG_CACHE_HOME:-$HOME/.cache}/tensorfold-prompt-cache}"   # shared by every TensorFold model; budgets are global
 : "${TF_POINTS_LAST:=all}"                      # states at EVERY message start (patch 0010; 3: the last 3; 0: upstream)

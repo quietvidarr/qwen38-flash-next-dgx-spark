@@ -28,6 +28,11 @@ if [ -n "$PROMPT_CACHE_DIR" ]; then              # patch 0006: kept prompt point
            TF_PROMPT_CACHE_QUEUE_GIB TF_PROMPT_CACHE_EXIT_S; do
     args+=(-e "$v=${!v}"); done
 fi
+if [ -n "$CHAT_TEMPLATE" ]; then              # sticky reasoning notes (local/templates/)
+  [ -f "$CHAT_TEMPLATE" ] || { log "CHAT_TEMPLATE $CHAT_TEMPLATE missing"; exit 1; }
+  args+=(-v "$(readlink -f "$CHAT_TEMPLATE"):/chat-template/chat_template.jinja:ro"
+         -e TF_CHAT_TEMPLATE=/chat-template/chat_template.jinja)
+fi
 args+=("$IMG" --model "/hf/model/snapshots/$MODEL_REVISION" --vision-weights /vision/vision_tower_bf16.safetensors
        --host "$HOST" --port "$PORT")
 want=$(printf '%s\n' "${args[@]}" | sha256sum | cut -c1-16)
